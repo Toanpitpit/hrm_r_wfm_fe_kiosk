@@ -1,194 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import ClockHeader from '@/shared/components/ClockHeader';
 import PinKeypad from '@/shared/components/PinKeypad';
 import AttendanceModal from '@/shared/components/AttendanceModal';
-import { attendanceService } from '../services/attendance.service';
-import { useKiosk } from '@/shared/context/KioskContext';
-import { useDebounce } from '@/shared/hooks/useDebounce';
+import { useKioskCheckIn } from '../../hooks/useKioskCheckIn';
 import { KeyRound, ArrowLeft, DollarSign, LogIn, LogOut, AlertTriangle } from 'lucide-react';
 
-const KioskCheckInPage = () => {
-  const { storeInfo } = useKiosk();
-  const storeId = storeInfo?.storeId || 1;
-  const kioskId = storeInfo?.kioskId || null;
-
-  // Step 1: 'code' (Nhập Mã Nhân Viên) | Step 2: 'pin' (Nhập Mã PIN) | Step 3: 'action' (Chọn CheckIn/CheckOut & Tiền Lẻ)
-  const [step, setStep] = useState('code');
-  const [employeeCode, setEmployeeCode] = useState('');
-  const [pinValue, setPinValue] = useState('');
-  
-  const [validatedEmployee, setValidatedEmployee] = useState(null);
-  const [openingFloat, setOpeningFloat] = useState('500000');
-  
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [attendanceResult, setAttendanceResult] = useState(null);
-
-  // Tra cứu gợi ý theo Mã NV với useDebounce (chờ 2 giây sau khi dừng nhập)
-  const debouncedEmployeeCode = useDebounce(employeeCode, 2000);
-  const [suggestions, setSuggestions] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-
-  useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (step !== 'code' || !debouncedEmployeeCode || debouncedEmployeeCode.trim().length === 0) {
-        setSuggestions([]);
-        return;
-      }
-
-      setIsSearching(true);
-      try {
-        const res = await attendanceService.searchStoreEmployees(storeId, debouncedEmployeeCode);
-        if (res.success && Array.isArray(res.data)) {
-          setSuggestions(res.data);
-        } else {
-          setSuggestions([]);
-        }
-      } catch (err) {
-        setSuggestions([]);
-      } finally {
-        setIsSearching(false);
-      }
-    };
-
-    fetchSuggestions();
-  }, [debouncedEmployeeCode, storeId, step]);
-
-  const handleSelectSuggestion = (item) => {
-    setEmployeeCode(item.employeeCode);
-    setSuggestions([]);
-  };
-
-  // Xử lý Bước 1: Tiếp tục sang nhập PIN
-  const handleCodeSubmit = (code) => {
-    if (!code || code.trim().length === 0) {
-      setErrorMsg('Vui lòng chọn hoặc nhập Mã Nhân Viên.');
-      return;
-    }
-    setErrorMsg('');
-    setStep('pin');
-    setPinValue('');
-  };
-
-  // Xử lý Bước 2: Gọi API Validate PIN
-  const handlePinSubmit = async (pin) => {
-    if (!pin || pin.length < 4) {
-      setErrorMsg('Vui lòng nhập đầy đủ Mã PIN (4-6 chữ số).');
-      return;
-    }
-
-    setLoading(true);
-    setErrorMsg('');
-
-    try {
-      const res = await attendanceService.validatePin(storeId, employeeCode, pin);
-      if (res.success && res.data) {
-        setValidatedEmployee(res.data);
-
-        if (!res.data.hasShiftToday) {
-          setErrorMsg(`Nhân viên ${res.data.fullName} không có lịch phân công ca hôm nay tại chi nhánh này.`);
-          setStep('code');
-          return;
-        }
-
-        setStep('action');
-      } else {
-        setErrorMsg(res.message || 'Mã PIN hoặc Mã Nhân Viên không hợp lệ.');
-      }
-    } catch (err) {
-      setErrorMsg('Không thể kết nối máy chủ điểm danh. Vui lòng kiểm tra lại mạng.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Thực hiện Check-In
-  const handleDoCheckIn = async () => {
-    if (!validatedEmployee) return;
-
-    setLoading(true);
-    setErrorMsg('');
-
-    try {
-      const res = await attendanceService.kioskCheckIn({
-        employeeId: validatedEmployee.employeeId,
-        storeId,
-        pinCode: pinValue,
-        kioskId,
-        openingFloatCash: validatedEmployee.positionCode === 'CASHIER' ? Number(openingFloat) : null,
-      });
-
-      setAttendanceResult({
-        success: res.success,
-        message: res.message,
-        employee: res.success ? {
-          code: res.data?.employeeCode || validatedEmployee.employeeCode,
-          name: res.data?.employeeName || validatedEmployee.fullName,
-        } : null,
-        type: 'CHECK-IN VÀO CA',
-        timestamp: new Date().toLocaleTimeString('vi-VN'),
-      });
-    } catch (err) {
-      setAttendanceResult({
-        success: false,
-        message: 'Lỗi hệ thống khi điểm danh vào ca.',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Thực hiện Check-Out
-  const handleDoCheckOut = async () => {
-    if (!validatedEmployee) return;
-
-    setLoading(true);
-    setErrorMsg('');
-
-    try {
-      const res = await attendanceService.kioskCheckOut({
-        employeeId: validatedEmployee.employeeId,
-        storeId,
-        pinCode: pinValue,
-        kioskId,
-      });
-
-      setAttendanceResult({
-        success: res.success,
-        message: res.message,
-        employee: res.success ? {
-          code: res.data?.employeeCode || validatedEmployee.employeeCode,
-          name: res.data?.employeeName || validatedEmployee.fullName,
-        } : null,
-        type: 'CHECK-OUT KẾT THÚC CA',
-        timestamp: new Date().toLocaleTimeString('vi-VN'),
-      });
-    } catch (err) {
-      setAttendanceResult({
-        success: false,
-        message: 'Lỗi hệ thống khi điểm danh kết thúc ca.',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Reset vòng lặp về Bước 1 cho nhân viên tiếp theo
-  const handleResetLoop = () => {
-    setAttendanceResult(null);
-    setStep('code');
-    setEmployeeCode('');
-    setPinValue('');
-    setValidatedEmployee(null);
-    setErrorMsg('');
-  };
-
-  // Quay lại Bước 1
-  const handleBackToStep1 = () => {
-    setStep('code');
-    setPinValue('');
-    setErrorMsg('');
-  };
+export const KioskCheckInPage = () => {
+  const {
+    step,
+    employeeCode,
+    setEmployeeCode,
+    pinValue,
+    setPinValue,
+    validatedEmployee,
+    openingFloat,
+    setOpeningFloat,
+    loading,
+    errorMsg,
+    attendanceResult,
+    suggestions,
+    isSearching,
+    handleSelectSuggestion,
+    handleCodeSubmit,
+    handlePinSubmit,
+    handleDoCheckIn,
+    handleDoCheckOut,
+    handleResetLoop,
+    handleBackToStep1,
+  } = useKioskCheckIn();
 
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
@@ -203,23 +42,31 @@ const KioskCheckInPage = () => {
 
         {/* Step Progress Bar */}
         <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6 z-10 flex-wrap justify-center">
-          <div className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold flex items-center gap-1.5 sm:gap-2 border transition-all ${
-            step === 'code'
-              ? 'bg-blue-600/30 text-blue-300 border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.3)]'
-              : 'bg-slate-900/80 text-slate-400 border-slate-800'
-          }`}>
-            <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">1</span>
+          <div
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold flex items-center gap-1.5 sm:gap-2 border transition-all ${
+              step === 'code'
+                ? 'bg-blue-600/30 text-blue-300 border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.3)]'
+                : 'bg-slate-900/80 text-slate-400 border-slate-800'
+            }`}
+          >
+            <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
+              1
+            </span>
             <span>BƯỚC 1: MÃ NV</span>
           </div>
 
           <div className="w-4 sm:w-6 h-0.5 bg-slate-800" />
 
-          <div className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold flex items-center gap-1.5 sm:gap-2 border transition-all ${
-            step === 'pin' || step === 'action'
-              ? 'bg-blue-600/30 text-blue-300 border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.3)]'
-              : 'bg-slate-900/80 text-slate-400 border-slate-800'
-          }`}>
-            <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">2</span>
+          <div
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold flex items-center gap-1.5 sm:gap-2 border transition-all ${
+              step === 'pin' || step === 'action'
+                ? 'bg-blue-600/30 text-blue-300 border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.3)]'
+                : 'bg-slate-900/80 text-slate-400 border-slate-800'
+            }`}
+          >
+            <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
+              2
+            </span>
             <span>BƯỚC 2: XÁC NHẬN</span>
           </div>
         </div>
@@ -233,7 +80,6 @@ const KioskCheckInPage = () => {
 
         {/* Kiosk Content Box */}
         <div className="w-full max-w-sm sm:max-w-md kiosk-glass p-5 sm:p-7 rounded-2xl sm:rounded-3xl border border-slate-800 shadow-2xl z-10 flex flex-col items-center relative my-auto">
-          
           {/* Quay lại Bước 1 */}
           {(step === 'pin' || step === 'action') && (
             <button
@@ -359,12 +205,8 @@ const KioskCheckInPage = () => {
         </div>
       </main>
 
-      {/* Result Feedback Modal (3s Auto Close -> Loops back to Step 1) */}
-      <AttendanceModal
-        result={attendanceResult}
-        autoCloseSeconds={3}
-        onClose={handleResetLoop}
-      />
+      {/* Result Feedback Modal */}
+      <AttendanceModal result={attendanceResult} autoCloseSeconds={3} onClose={handleResetLoop} />
     </div>
   );
 };
