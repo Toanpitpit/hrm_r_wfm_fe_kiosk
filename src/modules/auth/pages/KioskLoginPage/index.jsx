@@ -1,50 +1,9 @@
-import React, { useState } from 'react';
-import { useKiosk } from '@/shared/context/KioskContext';
-import { authService } from '../services/auth.service';
+import React from 'react';
+import { useKioskLogin } from '../../hooks/useKioskLogin';
 import { Store, ShieldAlert, ArrowRight, KeyRound } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { ROUTES } from '@/shared/constants/routes';
 
-const KioskLoginPage = () => {
-  const [activationCode, setActivationCode] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const { loginKiosk } = useKiosk();
-  const navigate = useNavigate();
-
-  const handleActivate = async (e) => {
-    e.preventDefault();
-    if (!activationCode.trim()) {
-      setError('Vui lòng nhập Mã Kích Hoạt Kiosk (OTP) từ Quản lý cửa hàng.');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const res = await authService.activateKiosk(activationCode);
-      if (res.success && res.data) {
-        // Lưu token và thông tin cửa hàng vào KioskContext
-        loginKiosk(res.data.deviceToken, {
-          kioskId: res.data.kioskId,
-          storeId: res.data.storeId,
-          storeCode: res.data.storeCode,
-          storeName: res.data.storeName,
-          kioskCode: res.data.kioskCode,
-          kioskName: res.data.kioskName,
-        });
-        navigate(ROUTES.CHECKIN);
-      } else {
-        setError(res.message || 'Mã Kích Hoạt Kiosk không chính xác hoặc đã hết hạn.');
-      }
-    } catch (err) {
-      setError('Không thể kết nối đến máy chủ Backend API. Vui lòng kiểm tra lại kết nối mạng.');
-    } finally {
-      setLoading(false);
-    }
-  };
+export const KioskLoginPage = () => {
+  const { activationCode, setActivationCode, loading, error, handleActivate } = useKioskLogin();
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-6 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">

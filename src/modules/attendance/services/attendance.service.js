@@ -69,6 +69,42 @@ export const attendanceService = {
   },
 
   /**
+   * Kịch bản V3 Điểm danh Thuần túy: Check-in bằng OTP 60s + Ảnh chân dung S3
+   */
+  async kioskCheckInV3({ kioskDeviceToken, userId, otpCode, imageBase64 }) {
+    try {
+      const response = await axiosInstance.post('kiosk/attendance/v3/check-in', {
+        kioskDeviceToken,
+        userId: Number(userId),
+        otpCode: otpCode.trim(),
+        imageBase64,
+      });
+      return response.data;
+    } catch (error) {
+      const message = error.response?.data?.message || 'Không thể thực hiện Check-in V3.';
+      return { success: false, message };
+    }
+  },
+
+  /**
+   * Kịch bản V3 Điểm danh Thuần túy: Check-out bằng OTP 60s + Ảnh chân dung S3
+   */
+  async kioskCheckOutV3({ kioskDeviceToken, userId, otpCode, imageBase64 }) {
+    try {
+      const response = await axiosInstance.post('kiosk/attendance/v3/check-out', {
+        kioskDeviceToken,
+        userId: Number(userId),
+        otpCode: otpCode.trim(),
+        imageBase64,
+      });
+      return response.data;
+    } catch (error) {
+      const message = error.response?.data?.message || 'Không thể thực hiện Check-out V3.';
+      return { success: false, message };
+    }
+  },
+
+  /**
    * Lấy danh sách phân công quân số ca trực hôm nay tại cửa hàng
    */
   async getKioskRoster(storeId, date) {
@@ -101,6 +137,22 @@ export const attendanceService = {
         message: 'Không thể tìm kiếm nhân viên.',
         data: [],
       };
+    }
+  },
+
+  /**
+   * Đệ trình GPS di động và lấy mã OTP 60s trên điện thoại cá nhân nhân viên
+   */
+  async requestOtp(latitude, longitude, type = 'CHECK_IN') {
+    try {
+      const response = await axiosInstance.post('attendance/request-otp', {
+        latitude,
+        longitude,
+        type,
+      });
+      return response.data;
+    } catch (error) {
+      return error.response?.data || { success: false, message: 'Không thể kết nối đến hệ thống lấy OTP.' };
     }
   },
 };
