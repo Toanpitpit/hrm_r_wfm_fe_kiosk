@@ -16,5 +16,7 @@ export const API_ENDPOINTS = {
     CHECK_IN: '/kiosk/attendance/check-in',
     CHECK_OUT: '/kiosk/attendance/check-out',
     SEARCH_EMPLOYEES: '/kiosk/attendance/search-employees',
+    UPLOAD_PHOTO: '/kiosk/attendance/upload-photo',
+    PRESIGNED_URL: '/kiosk/attendance/presigned-url',
   },
 };
