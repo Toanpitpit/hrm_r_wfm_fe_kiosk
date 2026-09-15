@@ -26,9 +26,54 @@ export const attendanceService = {
   },
 
   /**
-   * Bước 2a: Thực hiện Check-in đầu ca làm việc bằng mã PIN tại trạm Kiosk
+   * [API 1 - S3 Storage] Tải tệp tin ảnh chân dung dạng FormData (multipart/form-data) lên AWS S3 và nhận photoKey
    */
-  async kioskCheckIn({ employeeId, storeId, pinCode, kioskId, openingFloatCash }) {
+  async uploadPhoto(file, folder = 'attendance/checkin') {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', folder);
+
+      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.UPLOAD_PHOTO, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      const message = error.response?.data?.message || 'Không thể tải ảnh xác thực lên máy chủ S3.';
+      return {
+        success: false,
+        message,
+      };
+    }
+  },
+
+  /**
+   * [API 2 - S3 Storage] Lấy đường dẫn liên kết xem ảnh tạm thời (Presigned URL) từ photoKey lưu trong CSDL
+   */
+  async getPresignedUrl(photoKey, expirationMinutes = 30) {
+    try {
+      const response = await axiosInstance.get(API_ENDPOINTS.ATTENDANCE.PRESIGNED_URL, {
+        params: {
+          key: photoKey,
+          expirationMinutes,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      const message = error.response?.data?.message || 'Không thể lấy liên kết xem ảnh chân dung.';
+      return {
+        success: false,
+        message,
+      };
+    }
+  },
+
+  /**
+   * Bước 2a: Thực hiện Check-in đầu ca làm việc tại trạm Kiosk (gửi kèm photoKey từ S3)
+   */
+  async kioskCheckIn({ employeeId, storeId, pinCode, kioskId, openingFloatCash, photoKey }) {
     try {
       const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.CHECK_IN, {
         employeeId,
@@ -36,6 +81,7 @@ export const attendanceService = {
         pinCode: pinCode.trim(),
         kioskId: kioskId ? Number(kioskId) : null,
         openingFloatCash: openingFloatCash ? Number(openingFloatCash) : null,
+        photoKey: photoKey || null,
       });
       return response.data;
     } catch (error) {
@@ -48,15 +94,16 @@ export const attendanceService = {
   },
 
   /**
-   * Bước 2b: Thực hiện Check-out kết thúc ca làm việc bằng mã PIN tại trạm Kiosk
+   * Bước 2b: Thực hiện Check-out kết thúc ca làm việc tại trạm Kiosk (gửi kèm photoKey từ S3)
    */
-  async kioskCheckOut({ employeeId, storeId, pinCode, kioskId }) {
+  async kioskCheckOut({ employeeId, storeId, pinCode, kioskId, photoKey }) {
     try {
       const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.CHECK_OUT, {
         employeeId,
         storeId: Number(storeId),
         pinCode: pinCode.trim(),
         kioskId: kioskId ? Number(kioskId) : null,
+        photoKey: photoKey || null,
       });
       return response.data;
     } catch (error) {
