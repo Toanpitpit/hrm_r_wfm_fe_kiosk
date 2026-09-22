@@ -1,15 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck, UploadCloud } from 'lucide-react';
+import { Camera, RefreshCw, CheckCircle2, AlertTriangle, UploadCloud, ArrowRight } from 'lucide-react';
 import { attendanceService } from '@/modules/attendance/services/attendance.service';
 
 /**
  * Component chụp ảnh chân dung webcam trên Kiosk
- * Thực thi Quy trình 2 bước: Chụp ảnh ➔ Upload file FormData lên API 1 S3 nhận photoKey
+ * Luồng V3: Chụp ảnh trực tiếp từ webcam -> trích xuất Base64 -> gọi callback onConfirmCapture
  */
 export const KioskCameraCapture = ({
   folder = 'attendance/checkin',
+  actionType = 'CHECK_IN',
+  onConfirmCapture,
   onPhotoUploaded,
   onReset,
+  isUploading = false,
 }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -19,9 +22,11 @@ export const KioskCameraCapture = ({
   const [cameraError, setCameraError] = useState(null);
 
   const [capturedPreview, setCapturedPreview] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [localUploading, setLocalUploading] = useState(false);
   const [uploadedKey, setUploadedKey] = useState(null);
   const [uploadError, setUploadError] = useState(null);
+
+  const uploading = isUploading || localUploading;
 
   // Mở webcam khi component được nạp
   const startCamera = async () => {
@@ -69,11 +74,8 @@ export const KioskCameraCapture = ({
     }
   }, [stream]);
 
-  // Thực hiện chụp ảnh và upload file FormData lên S3
-  const handleCaptureAndUpload = async () => {
-    setUploadError(null);
-    let imageFile = null;
-
+  // Lấy ảnh từ Canvas/Webcam thành Data URL
+  const getCapturedDataUrl = () => {
     if (cameraActive && videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -82,13 +84,7 @@ export const KioskCameraCapture = ({
 
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-      setCapturedPreview(dataUrl);
-
-      // Chuyển canvas sang Blob/File
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-      imageFile = new File([blob], `kiosk-attendance-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      return canvas.toDataURL('image/jpeg', 0.85);
     } else {
       // Chế độ fallback nếu máy không có camera
       const canvas = document.createElement('canvas');
@@ -97,23 +93,44 @@ export const KioskCameraCapture = ({
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(0, 0, 640, 480);
-      ctx.fillStyle = '#38bdf8';
+      ctx.fillStyle = '#10b981';
       ctx.font = 'bold 24px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('ẢNH GIẢ LẬP DEMO KIOSK', 320, 240);
+      ctx.fillText('ẢNH XÁC THỰC KIOSK (DEMO)', 320, 220);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '16px sans-serif';
+      ctx.fillText(new Date().toLocaleString('vi-VN'), 320, 260);
 
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      return canvas.toDataURL('image/jpeg', 0.85);
+    }
+  };
+
+  // Bấm Chụp ảnh (Hiện preview)
+  const handleSnap = () => {
+    const dataUrl = getCapturedDataUrl();
+    setCapturedPreview(dataUrl);
+    setUploadError(null);
+  };
+
+  // Xác nhận ảnh và gửi đi
+  const handleConfirm = async () => {
+    const dataUrl = capturedPreview || getCapturedDataUrl();
+    if (!capturedPreview) {
       setCapturedPreview(dataUrl);
-
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-      imageFile = new File([blob], `mock-kiosk-photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
     }
 
-    if (!imageFile) return;
+    // Nếu có callback V3 onConfirmCapture:
+    if (onConfirmCapture) {
+      onConfirmCapture(dataUrl);
+      return;
+    }
 
-    setIsUploading(true);
+    // Fallback cho luồng cũ:
+    setLocalUploading(true);
+    setUploadError(null);
     try {
-      // Gọi API 1: Upload file chuẩn multipart/form-data lên S3
+      const blob = await (await fetch(dataUrl)).blob();
+      const imageFile = new File([blob], `kiosk-attendance-${Date.now()}.jpg`, { type: 'image/jpeg' });
       const res = await attendanceService.uploadPhoto(imageFile, folder);
       if (res.success && res.data?.photoKey) {
         setUploadedKey(res.data.photoKey);
@@ -126,7 +143,7 @@ export const KioskCameraCapture = ({
     } catch (err) {
       setUploadError('Lỗi kết nối khi tải ảnh lên máy chủ S3.');
     } finally {
-      setIsUploading(false);
+      setLocalUploading(false);
     }
   };
 
@@ -154,8 +171,8 @@ export const KioskCameraCapture = ({
             />
             {/* Oval Face Guide Overlay */}
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className="w-48 h-60 border-2 border-dashed border-emerald-400/70 rounded-full shadow-[0_0_20px_rgba(52,211,153,0.3)] animate-pulse flex items-center justify-center">
-                <span className="text-[10px] text-emerald-300 font-bold bg-slate-900/80 px-2 py-1 rounded-full uppercase tracking-wider">
+              <div className="w-48 h-60 border-2 border-dashed border-emerald-400/80 rounded-full shadow-[0_0_25px_rgba(52,211,153,0.35)] animate-pulse flex items-center justify-center">
+                <span className="text-[10px] text-emerald-300 font-bold bg-slate-950/80 px-2.5 py-1 rounded-full uppercase tracking-wider border border-emerald-500/40">
                   Căn Gương Mặt Tại Đây
                 </span>
               </div>
@@ -172,14 +189,11 @@ export const KioskCameraCapture = ({
         {capturedPreview && (
           <div className="relative w-full h-full">
             <img src={capturedPreview} alt="Kiosk Preview" className="w-full h-full object-cover" />
-            {uploadedKey && (
-              <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs flex flex-col items-center justify-center space-y-2 p-4">
-                <CheckCircle2 className="w-12 h-12 text-emerald-400 animate-bounce" />
-                <span className="text-xs font-black text-white uppercase tracking-wider bg-emerald-600/40 border border-emerald-500 px-3 py-1 rounded-xl">
-                  ĐÃ TẢI ẢNH LÊN S3 THÀNH CÔNG
-                </span>
-                <span className="text-[10px] text-slate-300 font-mono truncate max-w-xs">
-                  Key: {uploadedKey}
+            {uploading && (
+              <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex flex-col items-center justify-center space-y-3 p-4">
+                <div className="w-12 h-12 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs font-black text-white uppercase tracking-wider bg-slate-900/90 border border-emerald-500/50 px-4 py-1.5 rounded-xl">
+                  ĐANG TẢI ẢNH LÊN MÁY CHỦ S3...
                 </span>
               </div>
             )}
@@ -208,36 +222,56 @@ export const KioskCameraCapture = ({
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex items-center space-x-2">
-        {!uploadedKey ? (
+      {/* Action Buttons — Touchscreen Friendly (h-14 / h-16) */}
+      <div className="w-full flex items-center gap-2 pt-1">
+        {!capturedPreview ? (
           <button
             type="button"
-            disabled={isUploading}
-            onClick={handleCaptureAndUpload}
-            className="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+            disabled={uploading}
+            onClick={handleConfirm}
+            className={`w-full h-16 rounded-2xl font-black text-sm uppercase tracking-wide flex items-center justify-center gap-2.5 shadow-xl transition-all active:scale-95 disabled:opacity-50 select-none ${
+              actionType === 'CHECK_IN'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/30'
+                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-600/30'
+            }`}
           >
-            {isUploading ? (
-              <>
-                <UploadCloud className="w-4 h-4 animate-bounce text-white" />
-                <span>ĐANG UPLOAD ẢNH LÊN S3...</span>
-              </>
-            ) : (
-              <>
-                <Camera className="w-4 h-4" />
-                <span>CHỤP ẢNH XÁC THỰC S3</span>
-              </>
-            )}
+            <Camera className="w-6 h-6" />
+            <span>CHỤP ẢNH & HOÀN TẤT ĐIỂM DANH</span>
           </button>
         ) : (
-          <button
-            type="button"
-            onClick={handleRetake}
-            className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Chụp Lại Ảnh Khác</span>
-          </button>
+          <div className="w-full flex items-center gap-2">
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={handleRetake}
+              className="flex-1 h-14 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 border border-slate-700 select-none"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Chụp Lại</span>
+            </button>
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={handleConfirm}
+              className={`flex-2 h-14 rounded-2xl font-black text-xs uppercase tracking-wide flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-50 select-none ${
+                actionType === 'CHECK_IN'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30'
+                  : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30'
+              }`}
+            >
+              {uploading ? (
+                <>
+                  <UploadCloud className="w-4 h-4 animate-bounce" />
+                  <span>ĐANG GỬI ẢNH...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>XÁC NHẬN GỬI ẢNH</span>
+                </>
+              )}
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -245,3 +279,4 @@ export const KioskCameraCapture = ({
 };
 
 export default KioskCameraCapture;
+
