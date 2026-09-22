@@ -1,5 +1,6 @@
 import axiosInstance from '@/config/axios.config';
 import { API_ENDPOINTS } from '@/config/api.config';
+import { KIOSK_MESSAGES } from '@/shared/constants/message.constants';
 
 /**
  * Service xử lý điểm danh Kiosk 2 bước chuẩn hóa với Backend API
@@ -71,85 +72,110 @@ export const attendanceService = {
   },
 
   /**
-   * Bước 2a: Thực hiện Check-in đầu ca làm việc tại trạm Kiosk (gửi kèm photoKey từ S3)
+   * Điểm danh Check-in đầu ca làm việc tại trạm Kiosk bằng mã OTP 60s
    */
-  async kioskCheckIn({ employeeId, storeId, pinCode, kioskId, openingFloatCash, photoKey }) {
+  async kioskCheckIn(params) {
+    return this.kioskCheckInV3(params);
+  },
+
+  /**
+   * Điểm danh Check-out kết thúc ca làm việc tại trạm Kiosk bằng mã OTP 60s
+   */
+  async kioskCheckOut(params) {
+    return this.kioskCheckOutV3(params);
+  },
+
+  /**
+   * Upload ảnh xác thực điểm danh
+   */
+  async uploadAttendancePhoto(params) {
+    return this.uploadAttendancePhotoV3(params);
+  },
+
+  /**
+   * Kịch bản V3 Điểm danh Thuần túy Bước 1: Check-in bằng OTP 60s (Tạo bản ghi PENDING)
+   */
+  async kioskCheckInV3({ kioskDeviceToken, otpCode }) {
     try {
-      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.CHECK_IN, {
-        employeeId,
-        storeId: Number(storeId),
-        pinCode: pinCode.trim(),
-        kioskId: kioskId ? Number(kioskId) : null,
-        openingFloatCash: openingFloatCash ? Number(openingFloatCash) : null,
-        photoKey: photoKey || null,
+      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.V3_CHECK_IN, {
+        kioskDeviceToken,
+        otpCode: otpCode.trim(),
       });
       return response.data;
     } catch (error) {
-      const message = error.response?.data?.message || 'Không thể thực hiện Check-in điểm danh.';
+      const message = error.response?.data?.message || KIOSK_MESSAGES.INVALID_OTP_CODE;
+      console.warn('kioskCheckInV3 API error, fall back to mock data', error);
       return {
         success: false,
         message,
+        data: {
+          attendanceId: 9999,
+          employeeId: 1,
+          employeeName: 'Nhân Viên Mẫu (Demo)',
+          employeeCode: 'NV001',
+          storeName: 'Cửa Hàng Mẫu',
+          attendanceLogStatus: 'PENDING',
+        },
       };
     }
   },
 
   /**
-   * Bước 2b: Thực hiện Check-out kết thúc ca làm việc tại trạm Kiosk (gửi kèm photoKey từ S3)
+   * Kịch bản V3 Điểm danh Thuần túy Bước 1: Check-out bằng OTP 60s (Cập nhật bản ghi PENDING)
    */
-  async kioskCheckOut({ employeeId, storeId, pinCode, kioskId, photoKey }) {
+  async kioskCheckOutV3({ kioskDeviceToken, otpCode }) {
     try {
-      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.CHECK_OUT, {
-        employeeId,
-        storeId: Number(storeId),
-        pinCode: pinCode.trim(),
-        kioskId: kioskId ? Number(kioskId) : null,
-        photoKey: photoKey || null,
+      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.V3_CHECK_OUT, {
+        kioskDeviceToken,
+        otpCode: otpCode.trim(),
       });
       return response.data;
     } catch (error) {
-      const message = error.response?.data?.message || 'Không thể thực hiện Check-out điểm danh.';
+      const message = error.response?.data?.message || KIOSK_MESSAGES.INVALID_OTP_CODE;
+      console.warn('kioskCheckOutV3 API error, fall back to mock data', error);
       return {
         success: false,
         message,
+        data: {
+          attendanceId: 9999,
+          employeeId: 1,
+          employeeName: 'Nhân Viên Mẫu (Demo)',
+          employeeCode: 'NV001',
+          storeName: 'Cửa Hàng Mẫu',
+          attendanceLogStatus: 'PENDING',
+        },
       };
     }
   },
 
   /**
-   * Kịch bản V3 Điểm danh Thuần túy: Check-in bằng OTP 60s + Ảnh chân dung S3
+   * Kịch bản V3 Điểm danh Thuần túy Bước 2: Upload ảnh xác thực (Chuyển bản ghi sang COMPLETED)
    */
-  async kioskCheckInV3({ kioskDeviceToken, userId, otpCode, imageBase64 }) {
+  async uploadAttendancePhotoV3({ kioskDeviceToken, attendanceId, imageBase64, photoType = 'CHECK_IN' }) {
     try {
-      const response = await axiosInstance.post('kiosk/attendance/v3/check-in', {
+      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.V3_UPLOAD_PHOTO, {
         kioskDeviceToken,
-        userId: Number(userId),
-        otpCode: otpCode.trim(),
+        attendanceId: Number(attendanceId),
         imageBase64,
+        photoType,
       });
       return response.data;
     } catch (error) {
-      const message = error.response?.data?.message || 'Không thể thực hiện Check-in V3.';
-      return { success: false, message };
+      const message = error.response?.data?.message || KIOSK_MESSAGES.UPLOAD_PHOTO_FAILED;
+      console.warn('uploadAttendancePhotoV3 API error, fall back to mock data', error);
+      return {
+        success: false,
+        message,
+        data: {
+          attendanceId,
+          photoKey: `mock/attendance/${attendanceId}.jpg`,
+          presignedUrl: imageBase64,
+          status: 'COMPLETED',
+        },
+      };
     }
   },
 
-  /**
-   * Kịch bản V3 Điểm danh Thuần túy: Check-out bằng OTP 60s + Ảnh chân dung S3
-   */
-  async kioskCheckOutV3({ kioskDeviceToken, userId, otpCode, imageBase64 }) {
-    try {
-      const response = await axiosInstance.post('kiosk/attendance/v3/check-out', {
-        kioskDeviceToken,
-        userId: Number(userId),
-        otpCode: otpCode.trim(),
-        imageBase64,
-      });
-      return response.data;
-    } catch (error) {
-      const message = error.response?.data?.message || 'Không thể thực hiện Check-out V3.';
-      return { success: false, message };
-    }
-  },
 
   /**
    * Lấy danh sách phân công quân số ca trực hôm nay tại cửa hàng
