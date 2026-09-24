@@ -18,9 +18,11 @@ export const KioskCheckInPage = () => {
     errorMsg,
     attendanceResult,
     storeInfo,
+    cameraTimeoutSeconds,
     handleOtpSubmit,
     handleConfirmPhoto,
     handleResetLoop,
+    handleCancelAttendance,
     handleBackToOtp,
   } = useKioskCheckIn();
 
@@ -114,15 +116,15 @@ export const KioskCheckInPage = () => {
 
         {/* Kiosk Main Content Box */}
         <div className="w-full max-w-sm sm:max-w-md kiosk-glass p-5 sm:p-7 rounded-3xl border border-slate-800 shadow-2xl z-10 flex flex-col items-center relative my-auto">
-          {/* Nút Quay lại Bước 1 khi đang ở Camera */}
+          {/* Nút Hủy / Thoát ra khi đang ở Camera */}
           {step === 'camera' && (
             <button
-              onClick={handleBackToOtp}
+              onClick={handleCancelAttendance}
               disabled={loading}
-              className="absolute top-5 left-6 text-slate-400 hover:text-white flex items-center gap-1.5 text-xs font-bold transition-colors active:scale-95"
+              className="absolute top-5 left-6 text-slate-400 hover:text-red-400 flex items-center gap-1.5 text-xs font-bold transition-colors active:scale-95"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Nhập lại OTP</span>
+              <span>Hủy & Thoát ({cameraTimeoutSeconds}s)</span>
             </button>
           )}
 
@@ -195,7 +197,9 @@ export const KioskCheckInPage = () => {
                 actionType={actionType}
                 onConfirmCapture={handleConfirmPhoto}
                 isUploading={loading}
-                onReset={handleBackToOtp}
+                onReset={handleCancelAttendance}
+                onCancel={handleCancelAttendance}
+                timeoutSeconds={cameraTimeoutSeconds}
               />
             </div>
           )}

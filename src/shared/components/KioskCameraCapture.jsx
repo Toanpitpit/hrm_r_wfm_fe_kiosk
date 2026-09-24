@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, RefreshCw, CheckCircle2, AlertTriangle, UploadCloud, ArrowRight } from 'lucide-react';
+import { Camera, RefreshCw, CheckCircle2, AlertTriangle, UploadCloud, ArrowRight, XCircle } from 'lucide-react';
 import { attendanceService } from '@/modules/attendance/services/attendance.service';
 
 /**
@@ -12,6 +12,8 @@ export const KioskCameraCapture = ({
   onConfirmCapture,
   onPhotoUploaded,
   onReset,
+  onCancel,
+  timeoutSeconds = null,
   isUploading = false,
 }) => {
   const videoRef = useRef(null);
@@ -274,6 +276,26 @@ export const KioskCameraCapture = ({
           </div>
         )}
       </div>
+
+      {/* Nút Hủy điểm danh & Thoát ra cho người khác (Dành cho người dùng muốn hủy hoặc nhường lượt) */}
+      {onCancel && (
+        <div className="w-full pt-1">
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={onCancel}
+            className="w-full h-12 rounded-2xl bg-slate-900/80 hover:bg-red-950/40 text-slate-400 hover:text-red-300 border border-slate-700/80 hover:border-red-500/50 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm"
+          >
+            <XCircle className="w-4 h-4 text-red-400" />
+            <span>HỦY ĐIỂM DANH & THOÁT RA</span>
+            {timeoutSeconds !== null && (
+              <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-mono border border-slate-700">
+                Tự động thoát {timeoutSeconds}s
+              </span>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

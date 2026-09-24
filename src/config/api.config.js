@@ -18,10 +18,9 @@ export const API_ENDPOINTS = {
     SEARCH_EMPLOYEES: '/kiosk/attendance/search-employees',
     UPLOAD_PHOTO: '/kiosk/attendance/upload-photo',
     PRESIGNED_URL: '/kiosk/attendance/presigned-url',
-    // Attendance V3 Endpoints (OTP 60s + Pure Attendance Flow)
-    V3_CHECK_IN: '/kiosk/attendance/v3/check-in',
-    V3_CHECK_OUT: '/kiosk/attendance/v3/check-out',
-    V3_UPLOAD_PHOTO: '/kiosk/attendance/v3/upload-attendance-photo',
+    UPLOAD_ATTENDANCE_PHOTO: '/kiosk/attendance/upload-attendance-photo',
+    V3_UPLOAD_PHOTO: '/kiosk/attendance/upload-attendance-photo',
+    CANCEL: '/kiosk/attendance/cancel',
     REQUEST_OTP: '/attendance/request-otp',
   },
 };

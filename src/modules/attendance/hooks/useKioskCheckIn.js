@@ -27,6 +27,7 @@ export const useKioskCheckIn = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [attendanceResult, setAttendanceResult] = useState(null);
+  const [cameraTimeoutSeconds, setCameraTimeoutSeconds] = useState(45);
 
   // Chuyển đổi giữa Chế độ Vào ca và Ra ca
   const handleSwitchAction = useCallback((type) => {
@@ -85,6 +86,48 @@ export const useKioskCheckIn = () => {
     }
   }, [otpValue, step, loading, handleOtpSubmit]);
 
+  // Hủy điểm danh & Thoát ra ngoài cho người tiếp theo
+  const handleCancelAttendance = useCallback(async () => {
+    if (pendingRecord?.attendanceId) {
+      try {
+        await attendanceService.cancelAttendance({
+          kioskDeviceToken: kioskToken || 'DEMO-KIOSK-TOKEN',
+          attendanceId: pendingRecord.attendanceId,
+          actionType,
+        });
+      } catch (err) {
+        console.warn('Lỗi khi gửi yêu cầu hủy điểm danh:', err);
+      }
+    }
+    setStep('otp');
+    setOtpValue('');
+    setPendingRecord(null);
+    setErrorMsg('');
+    setLoading(false);
+  }, [actionType, kioskToken, pendingRecord]);
+
+  // Đếm ngược 45s khi đang ở camera, nếu không ai thao tác thì tự hủy để nhường người khác
+  useEffect(() => {
+    if (step !== 'camera') {
+      setCameraTimeoutSeconds(45);
+      return;
+    }
+
+    setCameraTimeoutSeconds(45);
+    const interval = setInterval(() => {
+      setCameraTimeoutSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          handleCancelAttendance();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [step, handleCancelAttendance]);
+
   // Bước 2: Chụp ảnh xác thực khuôn mặt và gửi lên Backend cập nhật COMPLETED
   const handleConfirmPhoto = useCallback(
     async (imageBase64) => {
@@ -112,18 +155,22 @@ export const useKioskCheckIn = () => {
 
           setAttendanceResult({
             success: true,
-            message: finalIsLate
-              ? `Điểm danh vào ca thành công nhưng bị ghi nhận ĐI MUỘN (LATE) do quá thời gian ân hạn 5 phút.`
-              : (res.message || KIOSK_MESSAGES.UPLOAD_PHOTO_SUCCESS),
+            message: res.data?.detailedMessage || res.message || (actionType === 'CHECK_IN' ? 'Check-in thành công' : 'Check-out thành công'),
             employee: {
               name: pendingRecord.employeeName || 'Nhân Viên',
               code: pendingRecord.employeeCode || 'NV',
             },
             timestamp: new Date().toLocaleTimeString('vi-VN'),
+            actionType,
             type: actionType === 'CHECK_IN' ? 'Vào ca (Check-in)' : 'Kết thúc ca (Check-out)',
             shiftName: pendingRecord.shiftName,
             isLate: finalIsLate,
             status: finalStatus,
+            checkInStatus: res.data?.checkInStatus,
+            checkOutStatus: res.data?.checkOutStatus,
+            lateMinutes: res.data?.lateMinutes,
+            earlyLeaveMinutes: res.data?.earlyLeaveMinutes,
+            actualWorkMinutes: res.data?.actualWorkMinutes,
             photoUrl: res.data?.presignedUrl || imageBase64,
           });
         } else {
@@ -148,14 +195,6 @@ export const useKioskCheckIn = () => {
     setAttendanceResult(null);
   }, []);
 
-  // Quay lại Bước 1 (Nhập lại OTP khác nếu muốn hủy lượt)
-  const handleBackToOtp = useCallback(() => {
-    setStep('otp');
-    setOtpValue('');
-    setPendingRecord(null);
-    setErrorMsg('');
-  }, []);
-
   return {
     actionType,
     setActionType: handleSwitchAction,
@@ -167,10 +206,12 @@ export const useKioskCheckIn = () => {
     errorMsg,
     attendanceResult,
     storeInfo,
+    cameraTimeoutSeconds,
     handleOtpSubmit,
     handleConfirmPhoto,
     handleResetLoop,
-    handleBackToOtp,
+    handleCancelAttendance,
+    handleBackToOtp: handleCancelAttendance,
   };
 };
 
