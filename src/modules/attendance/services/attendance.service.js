@@ -97,14 +97,14 @@ export const attendanceService = {
    */
   async kioskCheckInV3({ kioskDeviceToken, otpCode }) {
     try {
-      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.V3_CHECK_IN, {
+      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.CHECK_IN, {
         kioskDeviceToken,
         otpCode: otpCode.trim(),
       });
       return response.data;
     } catch (error) {
       const message = error.response?.data?.message || KIOSK_MESSAGES.INVALID_OTP_CODE;
-      console.warn('kioskCheckInV3 API error, fall back to mock data', error);
+      console.warn('kioskCheckIn API error, fall back to mock data', error);
       return {
         success: false,
         message,
@@ -125,7 +125,7 @@ export const attendanceService = {
    */
   async kioskCheckOutV3({ kioskDeviceToken, otpCode }) {
     try {
-      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.V3_CHECK_OUT, {
+      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.CHECK_OUT, {
         kioskDeviceToken,
         otpCode: otpCode.trim(),
       });
@@ -153,7 +153,7 @@ export const attendanceService = {
    */
   async uploadAttendancePhotoV3({ kioskDeviceToken, attendanceId, imageBase64, photoType = 'CHECK_IN' }) {
     try {
-      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.V3_UPLOAD_PHOTO, {
+      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.UPLOAD_ATTENDANCE_PHOTO, {
         kioskDeviceToken,
         attendanceId: Number(attendanceId),
         imageBase64,
@@ -162,7 +162,7 @@ export const attendanceService = {
       return response.data;
     } catch (error) {
       const message = error.response?.data?.message || KIOSK_MESSAGES.UPLOAD_PHOTO_FAILED;
-      console.warn('uploadAttendancePhotoV3 API error, fall back to mock data', error);
+      console.warn('uploadAttendancePhoto API error, fall back to mock data', error);
       return {
         success: false,
         message,
@@ -172,6 +172,27 @@ export const attendanceService = {
           presignedUrl: imageBase64,
           status: 'COMPLETED',
         },
+      };
+    }
+  },
+
+  /**
+   * Hủy lượt điểm danh khi nhân viên dừng ở bước chụp ảnh hoặc muốn thoát cho người khác điểm danh
+   */
+  async cancelAttendance({ kioskDeviceToken, attendanceId, actionType = 'CHECK_IN' }) {
+    try {
+      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.CANCEL, {
+        kioskDeviceToken,
+        attendanceId: Number(attendanceId),
+        actionType,
+      });
+      return response.data;
+    } catch (error) {
+      const message = error.response?.data?.message || 'Không thể hủy lượt điểm danh.';
+      console.warn('cancelAttendance API error:', error);
+      return {
+        success: false,
+        message,
       };
     }
   },
