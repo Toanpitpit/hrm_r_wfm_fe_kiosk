@@ -159,8 +159,8 @@ export const KioskCameraCapture = ({
   };
 
   return (
-    <div className="w-full space-y-3">
-      <div className="relative w-full aspect-[4/3] rounded-2xl bg-slate-900 border-2 border-slate-700/80 overflow-hidden shadow-2xl flex flex-col items-center justify-center">
+    <div className="w-full space-y-2.5 sm:space-y-3">
+      <div className="relative w-full aspect-[4/3] max-h-[38vh] sm:max-h-[48vh] rounded-xl sm:rounded-2xl bg-slate-900 border-2 border-slate-700/80 overflow-hidden shadow-2xl flex flex-col items-center justify-center">
         {/* Live Camera Stream */}
         {!capturedPreview && (
           <>
@@ -173,15 +173,15 @@ export const KioskCameraCapture = ({
             />
             {/* Oval Face Guide Overlay */}
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className="w-48 h-60 border-2 border-dashed border-emerald-400/80 rounded-full shadow-[0_0_25px_rgba(52,211,153,0.35)] animate-pulse flex items-center justify-center">
-                <span className="text-[10px] text-emerald-300 font-bold bg-slate-950/80 px-2.5 py-1 rounded-full uppercase tracking-wider border border-emerald-500/40">
+              <div className="w-36 h-48 sm:w-48 sm:h-60 border-2 border-dashed border-emerald-400/80 rounded-full shadow-[0_0_25px_rgba(52,211,153,0.35)] animate-pulse flex items-center justify-center">
+                <span className="text-[9px] sm:text-[10px] text-emerald-300 font-bold bg-slate-950/80 px-2.5 py-1 rounded-full uppercase tracking-wider border border-emerald-500/40 text-center">
                   Căn Gương Mặt Tại Đây
                 </span>
               </div>
             </div>
             {/* Live Camera Badge */}
-            <div className="absolute top-3 left-3 bg-slate-950/80 border border-slate-700 px-3 py-1 rounded-xl text-[10px] font-bold text-emerald-400 flex items-center gap-1.5 backdrop-blur-md">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+            <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-slate-950/80 border border-slate-700 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-bold text-emerald-400 flex items-center gap-1.5 backdrop-blur-md">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-ping" />
               <span>CAMERA KIOSK HOẠT ĐỘNG</span>
             </div>
           </>
@@ -193,8 +193,8 @@ export const KioskCameraCapture = ({
             <img src={capturedPreview} alt="Kiosk Preview" className="w-full h-full object-cover" />
             {uploading && (
               <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex flex-col items-center justify-center space-y-3 p-4">
-                <div className="w-12 h-12 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs font-black text-white uppercase tracking-wider bg-slate-900/90 border border-emerald-500/50 px-4 py-1.5 rounded-xl">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-[11px] sm:text-xs font-black text-white uppercase tracking-wider bg-slate-900/90 border border-emerald-500/50 px-3 sm:px-4 py-1.5 rounded-xl">
                   ĐANG TẢI ẢNH LÊN MÁY CHỦ S3...
                 </span>
               </div>
@@ -205,9 +205,9 @@ export const KioskCameraCapture = ({
         {/* Camera Warning / Fallback Notice */}
         {cameraError && !capturedPreview && (
           <div className="absolute inset-0 bg-slate-950/90 p-4 flex flex-col items-center justify-center text-center space-y-2">
-            <AlertTriangle className="w-10 h-10 text-amber-400 mb-1" />
+            <AlertTriangle className="w-8 h-8 sm:w-10 sm:h-10 text-amber-400 mb-1" />
             <p className="text-xs text-amber-200 font-semibold">{cameraError}</p>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[10px] sm:text-[11px] text-slate-400">
               Hệ thống sẽ tự động sử dụng ảnh xác thực mẫu để không chặn thử nghiệm.
             </p>
           </div>
@@ -219,26 +219,26 @@ export const KioskCameraCapture = ({
 
       {/* Upload Error Alert */}
       {uploadError && (
-        <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs text-center font-bold">
+        <div className="p-2 sm:p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs text-center font-bold">
           {uploadError}
         </div>
       )}
 
-      {/* Action Buttons — Touchscreen Friendly (h-14 / h-16) */}
+      {/* Action Buttons — Touchscreen Friendly */}
       <div className="w-full flex items-center gap-2 pt-1">
         {!capturedPreview ? (
           <button
             type="button"
             disabled={uploading}
             onClick={handleConfirm}
-            className={`w-full h-16 rounded-2xl font-black text-sm uppercase tracking-wide flex items-center justify-center gap-2.5 shadow-xl transition-all active:scale-95 disabled:opacity-50 select-none ${
+            className={`w-full h-13 sm:h-15 md:h-16 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wide flex items-center justify-center gap-2 sm:gap-2.5 shadow-xl transition-all active:scale-95 disabled:opacity-50 select-none touch-manipulation ${
               actionType === 'CHECK_IN'
                 ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/30'
                 : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-600/30'
             }`}
           >
-            <Camera className="w-6 h-6" />
-            <span>CHỤP ẢNH & HOÀN TẤT ĐIỂM DANH</span>
+            <Camera className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
+            <span className="truncate">CHỤP ẢNH & HOÀN TẤT ĐIỂM DANH</span>
           </button>
         ) : (
           <div className="w-full flex items-center gap-2">
@@ -246,16 +246,16 @@ export const KioskCameraCapture = ({
               type="button"
               disabled={uploading}
               onClick={handleRetake}
-              className="flex-1 h-14 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 border border-slate-700 select-none"
+              className="flex-1 h-12 sm:h-14 rounded-xl sm:rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 sm:gap-2 transition-all active:scale-95 border border-slate-700 select-none touch-manipulation"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-4 h-4 shrink-0" />
               <span>Chụp Lại</span>
             </button>
             <button
               type="button"
               disabled={uploading}
               onClick={handleConfirm}
-              className={`flex-2 h-14 rounded-2xl font-black text-xs uppercase tracking-wide flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-50 select-none ${
+              className={`flex-2 h-12 sm:h-14 rounded-xl sm:rounded-2xl font-black text-xs uppercase tracking-wide flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-50 select-none touch-manipulation ${
                 actionType === 'CHECK_IN'
                   ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30'
                   : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30'
@@ -263,13 +263,13 @@ export const KioskCameraCapture = ({
             >
               {uploading ? (
                 <>
-                  <UploadCloud className="w-4 h-4 animate-bounce" />
-                  <span>ĐANG GỬI ẢNH...</span>
+                  <UploadCloud className="w-4 h-4 animate-bounce shrink-0" />
+                  <span className="truncate">ĐANG GỬI ẢNH...</span>
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>XÁC NHẬN GỬI ẢNH</span>
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span className="truncate">XÁC NHẬN GỬI ẢNH</span>
                 </>
               )}
             </button>
@@ -277,20 +277,20 @@ export const KioskCameraCapture = ({
         )}
       </div>
 
-      {/* Nút Hủy điểm danh & Thoát ra cho người khác (Dành cho người dùng muốn hủy hoặc nhường lượt) */}
+      {/* Nút Hủy điểm danh & Thoát ra cho người khác */}
       {onCancel && (
-        <div className="w-full pt-1">
+        <div className="w-full pt-0.5">
           <button
             type="button"
             disabled={uploading}
             onClick={onCancel}
-            className="w-full h-12 rounded-2xl bg-slate-900/80 hover:bg-red-950/40 text-slate-400 hover:text-red-300 border border-slate-700/80 hover:border-red-500/50 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm"
+            className="w-full h-11 sm:h-12 rounded-xl sm:rounded-2xl bg-slate-900/80 hover:bg-red-950/40 text-slate-400 hover:text-red-300 border border-slate-700/80 hover:border-red-500/50 font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 sm:gap-2 transition-all active:scale-95 shadow-sm touch-manipulation"
           >
-            <XCircle className="w-4 h-4 text-red-400" />
+            <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400 shrink-0" />
             <span>HỦY ĐIỂM DANH & THOÁT RA</span>
             {timeoutSeconds !== null && (
-              <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-mono border border-slate-700">
-                Tự động thoát {timeoutSeconds}s
+              <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-mono border border-slate-700 ml-1">
+                {timeoutSeconds}s
               </span>
             )}
           </button>
