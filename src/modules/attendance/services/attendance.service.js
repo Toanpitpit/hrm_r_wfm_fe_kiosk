@@ -7,24 +7,24 @@ import { KIOSK_MESSAGES } from '@/shared/constants/message.constants';
  */
 export const attendanceService = {
   /**
-   * Bước 1: Tra cứu & Xác thực PIN Nhân viên (Trả về thông tin ca làm việc hôm nay)
-   */
-  async validatePin(storeId, employeeCode, pinCode) {
-    try {
-      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.VALIDATE_PIN, {
-        storeId: Number(storeId),
-        employeeCode: employeeCode.trim(),
-        pinCode: pinCode.trim(),
-      });
-      return response.data;
-    } catch (error) {
-      const message = error.response?.data?.message || 'Mã PIN hoặc Mã Nhân Viên không chính xác.';
-      return {
-        success: false,
-        message,
-      };
-    }
-  },
+  //  * Bước 1: Tra cứu & Xác thực PIN Nhân viên (Trả về thông tin ca làm việc hôm nay)
+  //  */
+  // async validatePin(storeId, employeeCode, pinCode) {
+  //   try {
+  //     const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.VALIDATE_PIN, {
+  //       storeId: Number(storeId),
+  //       employeeCode: employeeCode.trim(),
+  //       pinCode: pinCode.trim(),
+  //     });
+  //     return response.data;
+  //   } catch (error) {
+  //     const message = error.response?.data?.message || 'Mã PIN hoặc Mã Nhân Viên không chính xác.';
+  //     return {
+  //       success: false,
+  //       message,
+  //     };
+  //   }
+  // },
 
   /**
    * [API 1 - S3 Storage] Tải tệp tin ảnh chân dung dạng FormData (multipart/form-data) lên AWS S3 và nhận photoKey
